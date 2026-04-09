@@ -5,6 +5,10 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:    
   build-all:
     runs-on: ${{ matrix.os }}
