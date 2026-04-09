@@ -14,10 +14,6 @@ const resultDiv = document.getElementById('result');
 const resultContent = document.getElementById('resultContent');
 const scriptTypeSection = document.getElementById('scriptTypeSection');
 
-// 设置页面元素
-const autoUpdateCheckbox = document.getElementById('autoUpdateCheckbox');
-const autoStartCheckbox = document.getElementById('autoStartCheckbox');
-
 // 前端日志函数
 function logInfo(...args) { console.log('[INFO]', ...args); }
 function logError(...args) { console.error('[ERROR]', ...args); }
@@ -28,6 +24,14 @@ async function init() {
     await loadConfig();
     setupEventListeners();
     updateDefaultDirName(true);
+    
+    // 监听主进程打开设置页面的消息
+    if (window.electronAPI && window.electronAPI.onOpenSettings) {
+        window.electronAPI.onOpenSettings(() => {
+            logInfo('收到打开设置页面的消息');
+            showSettings();
+        });
+    }
 }
 
 async function loadConfig() {
@@ -35,6 +39,7 @@ async function loadConfig() {
         currentConfig = await window.electronAPI.getConfig();
         logInfo('配置加载成功', { databases: currentConfig.databases?.length, scriptTypes: currentConfig.script_types?.length });
         
+        // 填充数据库下拉框
         databaseSelect.innerHTML = '<option value="">请选择数据库</option>';
         if (currentConfig.databases && currentConfig.databases.length > 0) {
             currentConfig.databases.forEach(dbName => {
@@ -46,6 +51,7 @@ async function loadConfig() {
         }
         databaseSelect.size = 1;
         
+        // 填充脚本类型下拉框
         scriptTypeSelect.innerHTML = '<option value="">请选择脚本类型</option>';
         if (currentConfig.script_types && currentConfig.script_types.length > 0) {
             currentConfig.script_types.forEach(st => {
@@ -78,6 +84,7 @@ function updateDefaultDirName(force = false) {
 }
 
 function setupEventListeners() {
+    // 操作类型按钮点击事件
     document.querySelectorAll('.type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
@@ -85,6 +92,7 @@ function setupEventListeners() {
             currentOperateType = btn.dataset.type;
             logInfo('操作类型变更:', currentOperateType);
             
+            // QUERY 类型隐藏脚本类型选择
             if (currentOperateType === 'QUERY') {
                 scriptTypeSection.style.display = 'none';
             } else {
@@ -94,13 +102,20 @@ function setupEventListeners() {
         });
     });
     
+    // 脚本用途输入事件
     usageInput.addEventListener('input', () => updateDefaultDirName(true));
+    
+    // 目录名手动输入事件
     dirNameInput.addEventListener('input', () => {
         if (dirNameInput.value !== lastAutoDirName) {
             lastAutoDirName = dirNameInput.value;
         }
     });
+    
+    // 生成按钮点击事件
     generateBtn.addEventListener('click', generateScript);
+    
+    // 设置按钮点击事件
     settingsBtn.addEventListener('click', showSettings);
 }
 
@@ -143,7 +158,10 @@ async function generateScript() {
     try {
         const result = await window.electronAPI.generateScript({
             operateType: currentOperateType,
-            usage, database, scriptType, dirName
+            usage: usage,
+            database: database,
+            scriptType: scriptType,
+            dirName: dirName
         });
         
         if (result.success) {
@@ -176,10 +194,12 @@ function showSuccess(result) {
         logInfo('用户点击打开文件', result.filePath);
         await window.electronAPI.openFile(result.filePath);
     });
+    
     document.getElementById('openFolderBtn')?.addEventListener('click', async () => {
         logInfo('用户点击打开文件夹', result.targetPath);
         await window.electronAPI.openFolder(result.targetPath);
     });
+    
     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -189,7 +209,7 @@ function showError(message) {
     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// 拖动相关变量
+// ========== 拖动相关变量和函数 ==========
 let dragStartX = 0, dragStartY = 0;
 let dragInitialLeft = 0, dragInitialTop = 0;
 let dragModalContent = null;
@@ -258,18 +278,20 @@ function closeSettingsModal(modal) {
     cleanupDragListeners();
 }
 
+// ========== 设置页面相关 ==========
 async function showSettings() {
     const modal = document.getElementById('settingsModal');
     const config = await window.electronAPI.getConfig();
     logInfo('打开设置窗口');
     
-    // 通用配置
+    // 基础信息
     document.getElementById('basePath').value = config.base_path || '';
     document.getElementById('devChName').value = config.developer_ch_name || '';
     document.getElementById('devEnName').value = config.developer_en_name || '';
     document.getElementById('textEditor').value = config.text_edit_app || '';
-    autoUpdateCheckbox.checked = config.auto_update !== false; // 默认开启
-    autoStartCheckbox.checked = config.auto_start === true;
+    document.getElementById('autoUpdateCheckbox').checked = config.auto_update !== false;
+    document.getElementById('autoStartCheckbox').checked = config.auto_start === true;
+    document.getElementById('closeActionSelect').value = config.close_action || 'ask';
     
     // 数据库和脚本类型配置
     renderDatabasesConfig(config.databases || []);
@@ -278,19 +300,22 @@ async function showSettings() {
     // 关于页面信息
     const packageJson = await window.electronAPI.getPackageInfo();
     document.getElementById('aboutVersion').textContent = `版本: ${packageJson.version || '1.0.0'}`;
-    let author = packageJson.author || '未知作者';
+    let author = packageJson.author || 'lov3smu';
     author = author.replace(/<[^>]*>/g, '').trim();
     document.getElementById('aboutAuthor').textContent = `作者: ${author}`;
     const year = new Date().getFullYear();
     document.getElementById('aboutCopyright').textContent = `© ${year} ${author}. All rights reserved.`;
     
+    // 初始化标签页
     initSettingsTabs();
     
+    // 显示模态框
     modal.style.display = 'flex';
     const modalContent = modal.querySelector('.modal-content');
     const modalHeader = modal.querySelector('.modal-header');
     makeDraggable(modalContent, modalHeader);
     
+    // 关闭事件
     const closeModal = () => closeSettingsModal(modal);
     document.querySelector('.close').onclick = closeModal;
     document.getElementById('cancelSettingsBtn').onclick = closeModal;
@@ -309,6 +334,7 @@ async function showSettings() {
         }
     };
     
+    // 浏览按钮
     document.getElementById('browsePathBtn').onclick = async () => {
         const path = await window.electronAPI.selectDirectory();
         if (path) document.getElementById('basePath').value = path;
@@ -317,19 +343,100 @@ async function showSettings() {
         const filePath = await window.electronAPI.selectFile();
         if (filePath) document.getElementById('textEditor').value = filePath;
     };
+    
+    // 添加按钮
     document.getElementById('addDatabaseBtn').onclick = () => addDatabaseItem();
     document.getElementById('addScriptTypeBtn').onclick = () => addScriptTypeItem();
+}
+
+function renderDatabasesConfig(databases) {
+    const container = document.getElementById('databasesConfig');
+    if (!container) return;
+    container.innerHTML = '';
+    databases.forEach(dbName => {
+        const div = document.createElement('div');
+        div.className = 'config-item';
+        div.innerHTML = `
+            <div class="config-item-info">
+                <input type="text" placeholder="数据库名" value="${dbName}" class="input-field" style="width: 100%;">
+            </div>
+            <div class="config-item-actions">
+                <button class="btn-small delete-btn">删除</button>
+            </div>
+        `;
+        div.querySelector('.delete-btn').onclick = () => div.remove();
+        container.appendChild(div);
+    });
+}
+
+function renderScriptTypesConfig(scriptTypes) {
+    const container = document.getElementById('scriptTypesConfig');
+    if (!container) return;
+    container.innerHTML = '';
+    scriptTypes.forEach(st => {
+        const div = document.createElement('div');
+        div.className = 'config-item';
+        div.innerHTML = `
+            <div class="config-item-info">
+                <input type="text" placeholder="名称" value="${st.name}" class="input-field" style="width: 120px; margin-right: 10px;">
+                <input type="text" placeholder="描述" value="${st.description}" class="input-field" style="width: 300px;">
+            </div>
+            <div class="config-item-actions">
+                <button class="btn-small delete-btn">删除</button>
+            </div>
+        `;
+        div.querySelector('.delete-btn').onclick = () => div.remove();
+        container.appendChild(div);
+    });
+}
+
+function addDatabaseItem() {
+    const container = document.getElementById('databasesConfig');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'config-item';
+    div.innerHTML = `
+        <div class="config-item-info">
+            <input type="text" placeholder="数据库名" class="input-field" style="width: 100%;">
+        </div>
+        <div class="config-item-actions">
+            <button class="btn-small delete-btn">删除</button>
+        </div>
+    `;
+    div.querySelector('.delete-btn').onclick = () => div.remove();
+    container.appendChild(div);
+}
+
+function addScriptTypeItem() {
+    const container = document.getElementById('scriptTypesConfig');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'config-item';
+    div.innerHTML = `
+        <div class="config-item-info">
+            <input type="text" placeholder="名称" class="input-field" style="width: 120px; margin-right: 10px;">
+            <input type="text" placeholder="描述" class="input-field" style="width: 300px;">
+        </div>
+        <div class="config-item-actions">
+            <button class="btn-small delete-btn">删除</button>
+        </div>
+    `;
+    div.querySelector('.delete-btn').onclick = () => div.remove();
+    container.appendChild(div);
 }
 
 function validateSettings() {
     let isValid = true;
     let errorMessages = [];
+    
+    // 清除错误样式
     document.querySelectorAll('.config-item').forEach(item => {
         item.classList.remove('error');
         const inputs = item.querySelectorAll('input');
         inputs.forEach(input => input.classList.remove('error'));
     });
     
+    // 校验数据库名称重复
     const dbNames = [];
     const dbItems = document.querySelectorAll('#databasesConfig .config-item');
     dbItems.forEach(item => {
@@ -348,6 +455,7 @@ function validateSettings() {
         }
     });
     
+    // 校验脚本类型名称重复
     const typeNames = [];
     const typeItems = document.querySelectorAll('#scriptTypesConfig .config-item');
     typeItems.forEach(item => {
@@ -395,85 +503,15 @@ function initSettingsTabs() {
     });
 }
 
-function renderDatabasesConfig(databases) {
-    const container = document.getElementById('databasesConfig');
-    container.innerHTML = '';
-    databases.forEach(dbName => {
-        const div = document.createElement('div');
-        div.className = 'config-item';
-        div.innerHTML = `
-            <div class="config-item-info">
-                <input type="text" placeholder="数据库名" value="${dbName}" class="input-field" style="width: 100%;">
-            </div>
-            <div class="config-item-actions">
-                <button class="btn-small delete-btn">删除</button>
-            </div>
-        `;
-        div.querySelector('.delete-btn').onclick = () => div.remove();
-        container.appendChild(div);
-    });
-}
-
-function renderScriptTypesConfig(scriptTypes) {
-    const container = document.getElementById('scriptTypesConfig');
-    container.innerHTML = '';
-    scriptTypes.forEach(st => {
-        const div = document.createElement('div');
-        div.className = 'config-item';
-        div.innerHTML = `
-            <div class="config-item-info">
-                <input type="text" placeholder="名称" value="${st.name}" class="input-field" style="width: 120px; margin-right: 10px;">
-                <input type="text" placeholder="描述" value="${st.description}" class="input-field" style="width: 300px;">
-            </div>
-            <div class="config-item-actions">
-                <button class="btn-small delete-btn">删除</button>
-            </div>
-        `;
-        div.querySelector('.delete-btn').onclick = () => div.remove();
-        container.appendChild(div);
-    });
-}
-
-function addDatabaseItem() {
-    const container = document.getElementById('databasesConfig');
-    const div = document.createElement('div');
-    div.className = 'config-item';
-    div.innerHTML = `
-        <div class="config-item-info">
-            <input type="text" placeholder="数据库名" class="input-field" style="width: 100%;">
-        </div>
-        <div class="config-item-actions">
-            <button class="btn-small delete-btn">删除</button>
-        </div>
-    `;
-    div.querySelector('.delete-btn').onclick = () => div.remove();
-    container.appendChild(div);
-}
-
-function addScriptTypeItem() {
-    const container = document.getElementById('scriptTypesConfig');
-    const div = document.createElement('div');
-    div.className = 'config-item';
-    div.innerHTML = `
-        <div class="config-item-info">
-            <input type="text" placeholder="名称" class="input-field" style="width: 120px; margin-right: 10px;">
-            <input type="text" placeholder="描述" class="input-field" style="width: 300px;">
-        </div>
-        <div class="config-item-actions">
-            <button class="btn-small delete-btn">删除</button>
-        </div>
-    `;
-    div.querySelector('.delete-btn').onclick = () => div.remove();
-    container.appendChild(div);
-}
-
 async function saveSettings() {
+    // 收集数据库配置
     const databases = [];
     document.querySelectorAll('#databasesConfig .config-item').forEach(item => {
         const dbName = item.querySelector('input[type="text"]')?.value.trim();
         if (dbName) databases.push(dbName);
     });
     
+    // 收集脚本类型配置
     const scriptTypes = [];
     document.querySelectorAll('#scriptTypesConfig .config-item').forEach(item => {
         const inputs = item.querySelectorAll('input[type="text"]');
@@ -482,22 +520,29 @@ async function saveSettings() {
         if (name) scriptTypes.push({ name, description: description || '' });
     });
     
+    // 构建新配置
     const newConfig = {
         base_path: document.getElementById('basePath').value,
         developer_ch_name: document.getElementById('devChName').value,
         developer_en_name: document.getElementById('devEnName').value,
         text_edit_app: document.getElementById('textEditor').value,
-        auto_update: autoUpdateCheckbox.checked,
-        auto_start: autoStartCheckbox.checked,
+        auto_update: document.getElementById('autoUpdateCheckbox').checked,
+        auto_start: document.getElementById('autoStartCheckbox').checked,
+        close_action: document.getElementById('closeActionSelect').value,
         databases: databases,
         script_types: scriptTypes
     };
     
-    logInfo('保存配置', { databases: databases.length, scriptTypes: scriptTypes.length });
+    logInfo('保存配置', { 
+        databases: databases.length, 
+        scriptTypes: scriptTypes.length, 
+        close_action: newConfig.close_action 
+    });
+    
     const success = await window.electronAPI.saveConfig(newConfig);
     if (success) {
         // 应用开机启动设置
-        await window.electronAPI.setAutoStart(autoStartCheckbox.checked);
+        await window.electronAPI.setAutoStart(newConfig.auto_start);
         location.reload();
     } else {
         alert('保存失败');
@@ -505,8 +550,3 @@ async function saveSettings() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-// 监听主进程打开设置页面的消息
-window.electronAPI.onOpenSettings(() => {
-    showSettings();
-});
