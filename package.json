@@ -17,7 +17,8 @@
       "electron-builder": "^24.6.4"
   },
   "dependencies": {
-    "electron-log": "^5.0.1"
+    "electron-log": "^5.0.1",
+    "electron-updater": "^6.1.7"
   },
   "build": {
     "appId": "com.ancoka.sql-script-generator",
@@ -60,6 +61,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "lov3smu",
+      "repo": "sql-script-generator",
+      "releaseType": "release"
     }
   }
 }
