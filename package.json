@@ -23,7 +23,7 @@
   "build": {
     "appId": "com.ancoka.sql-script-generator",
     "productName": "SqlScriptGenerator",
-    "artifactName": "${productName}-${version}.${ext}",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },

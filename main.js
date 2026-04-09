@@ -60,10 +60,7 @@ function getIconPath() {
     let iconPath = null;
     
     if (app.isPackaged) {
-        // 生产环境：从 resources 目录读取
         const resourcesDir = process.resourcesPath;
-        
-        // 尝试多个可能的路径
         const possiblePaths = [
             path.join(resourcesDir, 'assets', 'icon.ico'),
             path.join(resourcesDir, 'assets', 'icon.png'),
@@ -79,7 +76,6 @@ function getIconPath() {
             }
         }
     } else {
-        // 开发环境
         const devPath = path.join(__dirname, 'assets', 'icon.ico');
         if (fs.existsSync(devPath)) {
             iconPath = devPath;
@@ -103,9 +99,7 @@ function getTrayIconPath() {
     let iconPath = null;
     
     if (app.isPackaged) {
-        // 生产环境：从 resources 目录读取
         const resourcesDir = process.resourcesPath;
-        
         const possiblePaths = [
             path.join(resourcesDir, 'assets', 'icon.png'),
             path.join(resourcesDir, 'assets', 'icon.ico'),
@@ -121,7 +115,6 @@ function getTrayIconPath() {
             }
         }
     } else {
-        // 开发环境
         const devPngPath = path.join(__dirname, 'assets', 'icon.png');
         if (fs.existsSync(devPngPath)) {
             iconPath = devPngPath;
@@ -211,16 +204,31 @@ async function saveConfig(newConfig) {
     }
 }
 
-// ========== 开机启动设置 ==========
+// ========== 开机启动设置（修复版） ==========
 async function setAutoStart(enable) {
     try {
+        // 获取打包后的可执行文件路径
+        let exePath;
+        if (app.isPackaged) {
+            exePath = process.execPath;
+        } else {
+            exePath = app.getPath('exe');
+        }
+        
+        log.info(`设置开机启动，可执行文件路径: ${exePath}`);
+        
+        // 设置开机启动
         app.setLoginItemSettings({
             openAtLogin: enable,
-            path: app.getPath('exe'),
+            path: exePath,
             args: enable ? ['--hidden'] : [],
             enabled: enable
         });
-        log.info(`开机启动设置: ${enable ? '开启' : '关闭'}`);
+        
+        // 验证设置
+        const settings = app.getLoginItemSettings();
+        log.info(`开机启动设置结果: ${settings.openAtLogin ? '已开启' : '已关闭'}`);
+        
         return true;
     } catch (error) {
         log.error('设置开机启动失败:', error);
@@ -382,7 +390,8 @@ function createSplashWindow() {
         show: true,
         webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
     
@@ -395,6 +404,7 @@ function createSplashWindow() {
     });
     
     log.info('启动画面已创建');
+    return splashWindow;
 }
 
 // ========== 平滑过渡：关闭启动画面并显示主窗口 ==========
@@ -453,25 +463,20 @@ function smoothTransitionToMain() {
 
 // ========== 处理窗口关闭事件 ==========
 async function handleWindowClose(event) {
-    // 如果正在退出应用，直接关闭
     if (app.isQuitting) {
         return;
     }
     
     event.preventDefault();
     
-    // 根据保存的行为决定操作
     if (config.close_action === "hide") {
-        // 直接隐藏到托盘
         mainWindow.hide();
         log.info('主窗口已隐藏到系统托盘（根据用户设置）');
     } else if (config.close_action === "quit") {
-        // 直接退出应用
         app.isQuitting = true;
         app.quit();
         log.info('应用已退出（根据用户设置）');
     } else {
-        // 显示系统默认询问对话框
         const result = await dialog.showMessageBox(mainWindow, {
             type: 'question',
             title: '关闭确认',
@@ -487,7 +492,6 @@ async function handleWindowClose(event) {
         log.info(`对话框返回: response=${result.response}, checkboxChecked=${result.checkboxChecked}`);
         
         if (result.response === 0) {
-            // 用户点击了"隐藏"按钮
             if (result.checkboxChecked) {
                 config.close_action = "hide";
                 await saveConfig(config);
@@ -496,21 +500,13 @@ async function handleWindowClose(event) {
             mainWindow.hide();
             log.info('主窗口已隐藏到系统托盘');
         } else if (result.response === 1 && result.checkboxChecked === true) {
-            // 用户点击了"退出"按钮并且勾选了复选框
             config.close_action = "quit";
             await saveConfig(config);
             log.info('用户选择记住：退出应用');
             app.isQuitting = true;
             app.quit();
-            log.info('应用已退出');
         } else if (result.response === 1 && result.checkboxChecked === false) {
-            // 用户点击了"退出"按钮但未勾选复选框，或者是点击了关闭按钮（X）
-            // 两者都返回 response=1, checkboxChecked=false
-            // 为了安全，不退出应用，只关闭对话框
             log.info('用户点击了退出按钮（未记住）或关闭按钮，不退出应用');
-            // 什么都不做，主窗口保持打开
-        } else {
-            log.info('对话框被取消，不执行任何操作');
         }
     }
 }
