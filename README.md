@@ -46,11 +46,28 @@
 - **执行时间预览** - 显示最近5次执行时间
 - **快捷键配置** - 可自定义各功能快捷键
 
-### 📄 SQL 模版生成器
+### ⏱️ Unix 时间戳转换器
 
-- **常用模版** - 提供常用 SQL 语句模版
-- **分类管理** - 模版按基础操作、查询、DDL、DML分类
-- **快速复制** - 一键复制模版内容
+- **实时显示** - 显示当前10位(秒级)和13位(毫秒级)时间戳
+- **双向转换** - 支持时间戳转北京时间、北京时间转时间戳
+- **快速输入** - 支持 YYYYMMDDHHMMSS 格式快速转换
+- **一键复制** - 转换结果支持一键复制
+
+### 📝 YAML 编辑验证器
+
+- **格式化** - YAML 代码格式化，支持标准缩进
+- **压缩** - YAML 代码压缩，减少空行
+- **校验** - 实时校验 YAML 语法，提示错误位置
+- **转换** - YAML 转 JSON，支持树形视图展示
+- **文件加载** - 支持从本地文件加载 YAML
+
+### 📁 文件管理器
+
+- **目录浏览** - 浏览脚本存储目录结构
+- **视图切换** - 支持列表视图、平铺视图、紧凑模式
+- **时间排序** - 按创建时间正序/倒序排列
+- **右键菜单** - 打开文件/文件夹、复制路径、查看属性
+- **属性查看** - 显示文件类型、大小、创建/修改时间等信息
 
 ### 🎨 界面特色
 
@@ -135,37 +152,41 @@ npm run dev
 ```
 sql-script-generator/
 ├── assets/                 # 图标和资源文件
-├── electron/               # Electron 主进程代码
-│   ├── main.bundle.js      # 主进程入口（打包版）
-│   ├── main.js             # 主进程入口（开发版）
-│   ├── preload.js          # 预加载脚本
-│   ├── config.js           # 配置管理
-│   ├── ipc.js              # IPC 通信
-│   ├── tray.js             # 系统托盘
-│   ├── menu.js             # 应用菜单
-│   ├── generator.js        # SQL 生成逻辑
-│   ├── updater.js          # 自动更新
-│   └── autostart.js        # 开机自启动
-├── public/                 # 公共静态资源
-│   └── splash.html         # 启动加载页面
-├── src/                    # Vue 源代码
-│   ├── views/              # 页面组件
-│   │   ├── Home.vue        # 主页面
-│   │   ├── Settings.vue    # 设置页面
-│   │   ├── Password.vue    # 密码生成器
-│   │   ├── Cron.vue        # Cron 表达式生成器
-│   │   └── Template.vue    # SQL 模版生成器
-│   ├── styles/             # CSS 样式文件
-│   │   └── base.css        # 基础样式
-│   ├── router/             # Vue Router 配置
-│   ├── App.vue             # 根组件
-│   └── main.js             # Vue 入口
+├── src/                    # 源代码目录
+│   ├── main/               # Electron 主进程代码
+│   │   ├── index.js        # 主进程入口
+│   │   ├── ipc/            # IPC 通信
+│   │   ├── windows/        # 窗口管理
+│   │   ├── ui/             # UI 相关（菜单、托盘）
+│   │   ├── services/       # 服务（配置、生成、更新、自启动）
+│   │   ├── utils/          # 工具函数
+│   │   └── constants/      # 常量定义
+│   ├── preload/            # 预加载脚本
+│   │   └── index.js        # 预加载入口
+│   └── renderer/           # Vue 渲染进程代码
+│       ├── src/
+│       │   ├── views/      # 页面组件
+│       │   │   ├── Home.vue         # 主页面
+│       │   │   ├── Settings.vue     # 设置页面
+│       │   │   ├── Password.vue     # 密码生成器
+│       │   │   ├── Cron.vue         # Cron 表达式生成器
+│       │   │   ├── UnixTimestamp.vue # Unix 时间戳转换器
+│       │   │   ├── YamlEditor.vue   # YAML 编辑验证器
+│       │   │   └── FileManager.vue  # 文件管理器
+│       │   ├── styles/     # CSS 样式文件
+│       │   ├── router/     # Vue Router 配置
+│       │   ├── composables/ # Vue 组合式函数
+│       │   ├── api/        # API 接口
+│       │   ├── App.vue     # 根组件
+│       │   └── main.js     # Vue 入口
+│       └── index.html      # HTML 入口
 ├── .github/                # GitHub 配置
-│   └── workflows/          # CI/CD 工作流
-│       └── build.yml       # 构建发布流程
+│   └ workflows/            # CI/CD 工作流
+│     └ build.yml           # 构建发布流程
 ├── package.json            # 项目配置
-├── vite.config.js          # Vite 配置
-└── README.md               # 说明文档
+├── electron.vite.config.js # Electron Vite 配置
+└ LICENSE.txt               # 许可证
+└ README.md                 # 说明文档
 ```
 
 ### 构建打包
@@ -203,7 +224,9 @@ npm run build
   - `home` - 首页快捷键
   - `password` - 密码生成器快捷键
   - `cron` - Cron 生成器快捷键
-  - `template` - SQL 模版快捷键
+  - `unixtimestamp` - Unix 时间戳转换器快捷键
+  - `yamlEditor` - YAML 编辑器快捷键
+  - `fileManager` - 文件管理器快捷键
   - `settings` - 设置快捷键
 - `auto_update` - 自动更新开关
 - `auto_start` - 开机自启动开关
@@ -215,12 +238,13 @@ npm run build
 
 - **[Electron](https://www.electronjs.org/)** - 跨平台桌面应用框架
 - **[Vue 3](https://vuejs.org/)** - 渐进式 JavaScript 框架
+- **[electron-vite](https://electron-vite.org/)** - Electron Vite 构建工具
 - **[Vite](https://vitejs.dev/)** - 下一代前端构建工具
 - **[Vue Router](https://router.vuejs.org/)** - Vue.js 官方路由
-- **[vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron)** - Vite Electron 插件
 - **[electron-builder](https://www.electron.build/)** - 应用打包工具
 - **[electron-log](https://github.com/megahertz/electron-log)** - 日志记录
 - **[electron-updater](https://github.com/electron-userland/electron-updater)** - 自动更新
+- **[js-yaml](https://github.com/nodeca/js-yaml)** - YAML 解析库
 
 ---
 

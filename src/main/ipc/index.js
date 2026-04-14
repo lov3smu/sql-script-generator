@@ -1,5 +1,6 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, clipboard } from 'electron'
 import path from 'path'
+import fs from 'fs'
 import { log, getProjectRoot } from '../utils'
 import { getConfig, saveConfig, loadConfig, generateSQLFile, openFile, openFolder, setAutoStart, getAutoStart, checkForUpdates } from '../services'
 import { isPathWithinBase } from '../utils/sanitize'
@@ -20,7 +21,16 @@ export function setupIPCHandlers() {
     description: packageJson.description,
   }))
 
-  ipcMain.handle('save-config', async (_event, newConfig) => await saveConfig(newConfig))
+  ipcMain.handle('save-config', async (_event, newConfig) => {
+    const success = await saveConfig(newConfig)
+    if (success) {
+      const mainWindow = getMainWindow()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('config-changed')
+      }
+    }
+    return success
+  })
 
   ipcMain.handle('generate-script', async (_event, scriptInfo) => await generateSQLFile(scriptInfo))
 
@@ -46,13 +56,17 @@ export function setupIPCHandlers() {
 
   ipcMain.handle('select-directory', async () => {
     const mainWindow = getMainWindow()
-    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+    const settingsWindow = getSettingsWindow()
+    const parentWindow = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow
+    const result = await dialog.showOpenDialog(parentWindow, { properties: ['openDirectory'] })
     return result.filePaths[0] || ''
   })
 
   ipcMain.handle('select-file', async () => {
     const mainWindow = getMainWindow()
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const settingsWindow = getSettingsWindow()
+    const parentWindow = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow
+    const result = await dialog.showOpenDialog(parentWindow, {
       properties: ['openFile'],
       filters: [
         { name: '可执行文件', extensions: ['exe'] },
@@ -69,7 +83,9 @@ export function setupIPCHandlers() {
 
   ipcMain.handle('check-for-updates', async (_event, manual) => {
     const mainWindow = getMainWindow()
-    return await checkForUpdates(manual, mainWindow)
+    const settingsWindow = getSettingsWindow()
+    const parentWindow = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : mainWindow
+    return await checkForUpdates(manual, parentWindow)
   })
 
   ipcMain.handle('open-settings', async () => {
@@ -92,4 +108,177 @@ export function setupIPCHandlers() {
     }
     return false
   })
+
+  ipcMain.handle('read-directory', async (_event, dirPath) => {
+    try {
+      const config = getConfig()
+      const basePath = config.base_path
+      
+      if (!dirPath || typeof dirPath !== 'string') {
+        return { success: false, error: '路径无效' }
+      }
+      
+      if (basePath && !isPathWithinBase(dirPath, basePath)) {
+        log.warn('拒绝读取 base_path 外的目录:', dirPath)
+        return { success: false, error: '无权访问该目录' }
+      }
+      
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+      const directories = []
+      const files = []
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name)
+        try {
+          const stat = await fs.promises.stat(fullPath)
+          const item = {
+            name: entry.name,
+            path: fullPath,
+            created: stat.birthtimeMs || stat.ctimeMs,
+            isDirectory: entry.isDirectory()
+          }
+          
+          if (entry.isDirectory()) {
+            directories.push(item)
+          } else {
+            files.push(item)
+          }
+        } catch (e) {
+          log.warn('无法读取文件信息:', fullPath, e.message)
+        }
+      }
+      
+      return { success: true, directories, files }
+    } catch (e) {
+      log.error('读取目录失败:', e)
+      return { success: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('copy-to-clipboard', async (_event, itemPath, recursive = false) => {
+    try {
+      const config = getConfig()
+      const basePath = config.base_path
+      
+      if (!itemPath || typeof itemPath !== 'string') {
+        return false
+      }
+      
+      if (basePath && !isPathWithinBase(itemPath, basePath)) {
+        log.warn('拒绝访问 base_path 外的路径:', itemPath)
+        return false
+      }
+      
+      let filePaths = []
+      
+      const stat = await fs.promises.stat(itemPath)
+      
+      if (stat.isDirectory()) {
+        filePaths = await collectFiles(itemPath, recursive)
+      } else {
+        filePaths = [itemPath]
+      }
+      
+      const text = filePaths.join('\n')
+      clipboard.writeText(text)
+      return true
+    } catch (e) {
+      log.error('复制失败:', e)
+      return false
+    }
+  })
+
+  ipcMain.handle('get-item-info', async (_event, itemPath) => {
+    try {
+      const config = getConfig()
+      const basePath = config.base_path
+      
+      if (!itemPath || typeof itemPath !== 'string') {
+        return { success: false, error: '路径无效' }
+      }
+      
+      if (basePath && !isPathWithinBase(itemPath, basePath)) {
+        log.warn('拒绝访问 base_path 外的路径:', itemPath)
+        return { success: false, error: '无权访问' }
+      }
+      
+      const stat = await fs.promises.stat(itemPath)
+      const isDirectory = stat.isDirectory()
+      
+      const info = {
+        name: path.basename(itemPath),
+        type: isDirectory ? '文件夹' : '文件',
+        location: itemPath,
+        created: stat.birthtimeMs || stat.ctimeMs,
+        modified: stat.mtimeMs,
+        accessed: stat.atimeMs
+      }
+      
+      if (isDirectory) {
+        const stats = await getDirectoryStats(itemPath)
+        info.size = stats.size
+        info.sizeOnDisk = stats.size
+        info.directoryCount = stats.directoryCount
+        info.fileCount = stats.fileCount
+      } else {
+        info.size = stat.size
+        info.sizeOnDisk = stat.size
+      }
+      
+      return { success: true, info }
+    } catch (e) {
+      log.error('获取信息失败:', e)
+      return { success: false, error: e.message }
+    }
+  })
+}
+
+async function collectFiles(dirPath, recursive) {
+  const files = []
+  const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name)
+    if (entry.isDirectory() && recursive) {
+      const subFiles = await collectFiles(fullPath, recursive)
+      files.push(...subFiles)
+    } else if (entry.isFile()) {
+      files.push(fullPath)
+    }
+  }
+  
+  return files
+}
+
+async function getDirectoryStats(dirPath) {
+  let size = 0
+  let directoryCount = 0
+  let fileCount = 0
+  
+  try {
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name)
+      try {
+        if (entry.isDirectory()) {
+          directoryCount++
+          const subStats = await getDirectoryStats(fullPath)
+          size += subStats.size
+          directoryCount += subStats.directoryCount
+          fileCount += subStats.fileCount
+        } else {
+          fileCount++
+          const fileStat = await fs.promises.stat(fullPath)
+          size += fileStat.size
+        }
+      } catch (e) {
+        log.warn('无法读取:', fullPath, e.message)
+      }
+    }
+  } catch (e) {
+    log.warn('无法读取目录:', dirPath, e.message)
+  }
+  
+  return { size, directoryCount, fileCount }
 }

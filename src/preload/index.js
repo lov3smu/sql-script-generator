@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: (manual) => ipcRenderer.invoke('check-for-updates', manual),
   openSettings: () => ipcRenderer.invoke('open-settings'),
   closeSettingsWindow: () => ipcRenderer.invoke('close-settings-window'),
+  readDirectory: (dirPath) => ipcRenderer.invoke('read-directory', dirPath),
+  copyToClipboard: (itemPath, recursive) => ipcRenderer.invoke('copy-to-clipboard', itemPath, recursive),
+  getItemInfo: (itemPath) => ipcRenderer.invoke('get-item-info', itemPath),
   
   onNavigateTo: (callback) => ipcRenderer.on('navigate-to', (_event, path) => callback(path)),
   onUpdateStatus: (callback) => ipcRenderer.on('update-status', (_event, status) => callback(status)),

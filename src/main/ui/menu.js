@@ -33,6 +33,7 @@ export function createAppMenu(mainWindow, checkForUpdatesFn, createSettingsWindo
     cron: 'CmdOrCtrl+Shift+C',
     unixtimestamp: 'CmdOrCtrl+Shift+T',
     yamlEditor: 'CmdOrCtrl+Shift+Y',
+    fileManager: 'CmdOrCtrl+Shift+F',
     settings: 'CmdOrCtrl+,'
   }
 
@@ -47,6 +48,16 @@ export function createAppMenu(mainWindow, checkForUpdatesFn, createSettingsWindo
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.show()
               mainWindow.webContents.send('navigate-to', '/')
+            }
+          },
+        },
+        {
+          label: '文件管理器',
+          accelerator: shortcuts.fileManager || 'CmdOrCtrl+Shift+F',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.show()
+              mainWindow.webContents.send('navigate-to', '/file-manager')
             }
           },
         },

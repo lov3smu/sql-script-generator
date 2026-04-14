@@ -30,6 +30,11 @@ const routes = [
     path: '/yaml-editor',
     name: 'YamlEditor',
     component: () => import('@/views/YamlEditor.vue')
+  },
+  {
+    path: '/file-manager',
+    name: 'FileManager',
+    component: () => import('@/views/FileManager.vue')
   }
 ]
 
