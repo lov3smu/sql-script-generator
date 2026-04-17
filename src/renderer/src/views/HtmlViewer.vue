@@ -1,7 +1,13 @@
 <template>
   <div class="html-viewer-container" :style="{ width: Math.min(windowWidth * 0.9, windowWidth) + 'px' }">
     <header>
-      <h1>HTML查看器</h1>
+      <h1>
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6"/>
+          <polyline points="8 6 2 12 8 18"/>
+        </svg>
+        HTML查看器
+      </h1>
       <div class="subtitle">HTML编辑、查看与美化工具</div>
     </header>
 
@@ -395,9 +401,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 24px;
   margin-bottom: 6px;
+}
+
+.html-viewer-container header h1 .header-icon {
+  width: 28px;
+  height: 28px;
 }
 
 .html-viewer-container header .subtitle {

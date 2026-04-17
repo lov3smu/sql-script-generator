@@ -1,7 +1,14 @@
 <template>
   <div class="json-parser-container" :style="{ width: windowWidth + 'px' }">
     <header>
-      <h1>JSON解析器</h1>
+      <h1>
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="4 7 4 4 20 4 20 7"/>
+          <polyline points="4 17 4 20 20 20 20 17"/>
+          <line x1="9" y1="12" x2="15" y2="12"/>
+        </svg>
+        JSON解析器
+      </h1>
       <div class="subtitle">JSON格式化、验证、压缩与JSONPath查询工具</div>
     </header>
 
@@ -1185,9 +1192,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 24px;
   margin-bottom: 6px;
+}
+
+.json-parser-container header h1 .header-icon {
+  width: 28px;
+  height: 28px;
 }
 
 .json-parser-container header .subtitle {

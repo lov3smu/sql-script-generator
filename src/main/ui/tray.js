@@ -40,6 +40,15 @@ export function createTray(window, checkForUpdatesFn, createSettingsWindowFn) {
       label: '工具',
       submenu: [
         {
+          label: 'SQL脚本生成',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.show()
+              mainWindow.webContents.send('navigate-to', '/sql-generator')
+            }
+          },
+        },
+        {
           label: '密码生成器',
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {

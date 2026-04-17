@@ -3,8 +3,13 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: () => import('@/views/Home.vue')
+    name: 'Dashboard',
+    component: () => import('@/views/Dashboard.vue')
+  },
+  {
+    path: '/sql-generator',
+    name: 'SqlGenerator',
+    component: () => import('@/views/SqlScriptGenerator.vue')
   },
   {
     path: '/settings',

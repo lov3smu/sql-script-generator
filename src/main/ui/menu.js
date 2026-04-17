@@ -82,6 +82,16 @@ export function createAppMenu(mainWindow, checkForUpdatesFn, createSettingsWindo
       label: '工具',
       submenu: [
         {
+          label: 'SQL脚本生成',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.show()
+              mainWindow.webContents.send('navigate-to', '/sql-generator')
+            }
+          },
+        },
+        {
           label: '密码生成器',
           accelerator: shortcuts.password || 'CmdOrCtrl+P',
           click: () => {
