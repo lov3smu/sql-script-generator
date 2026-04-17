@@ -331,14 +331,22 @@ async function copyAllFilesPath() {
 }
 
 function showToast(message) {
-  const existing = document.querySelector('.toast-message')
+  const existing = document.querySelector('.toast')
   if (existing) existing.remove()
   
   const toast = document.createElement('div')
-  toast.className = 'toast-message'
-  toast.textContent = message
+  toast.className = 'toast'
+  toast.innerHTML = `<span class="toast-icon">✓</span><span class="toast-message">${message}</span>`
   document.body.appendChild(toast)
-  setTimeout(() => toast.remove(), 2000)
+  
+  setTimeout(() => {
+    toast.classList.add('show')
+  }, 10)
+  
+  setTimeout(() => {
+    toast.classList.remove('show')
+    setTimeout(() => toast.remove(), 300)
+  }, 2000)
 }
 
 function formatTime(timestamp) {
@@ -814,32 +822,5 @@ onUnmounted(() => {
 .properties-value.location {
   font-size: 12px;
   color: var(--text-tertiary);
-}
-</style>
-
-<style>
-.toast-message {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 12px 24px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  z-index: 2000;
-  animation: fadeInUp 0.3s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
 }
 </style>

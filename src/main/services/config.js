@@ -43,6 +43,7 @@ function getDefaultConfigContent() {
       unixtimestamp: 'CmdOrCtrl+U',
       yamlEditor: 'CmdOrCtrl+Y',
       fileManager: 'CmdOrCtrl+F',
+      jsonParser: 'CmdOrCtrl+J',
       settings: 'CmdOrCtrl+,'
     },
   }
@@ -81,7 +82,7 @@ export function validateConfig(cfg) {
   if (cfg.close_action && !VALID_CLOSE_ACTIONS.includes(cfg.close_action)) return 'close_action 值不合法'
   if (cfg.shortcuts !== undefined) {
     if (typeof cfg.shortcuts !== 'object') return 'shortcuts 必须是对象'
-    const validKeys = ['password', 'cron', 'unixtimestamp', 'yamlEditor', 'fileManager', 'settings']
+    const validKeys = ['password', 'cron', 'unixtimestamp', 'yamlEditor', 'fileManager', 'jsonParser', 'settings']
     for (const key of Object.keys(cfg.shortcuts)) {
       if (!validKeys.includes(key)) return `shortcuts.${key} 不是有效的快捷键配置项`
       if (typeof cfg.shortcuts[key] !== 'string') return `shortcuts.${key} 必须是字符串`

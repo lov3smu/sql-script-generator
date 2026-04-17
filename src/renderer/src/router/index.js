@@ -35,6 +35,16 @@ const routes = [
     path: '/file-manager',
     name: 'FileManager',
     component: () => import('@/views/FileManager.vue')
+  },
+  {
+    path: '/json-parser',
+    name: 'JsonParser',
+    component: () => import('@/views/JsonParser.vue')
+  },
+  {
+    path: '/html-viewer',
+    name: 'HtmlViewer',
+    component: () => import('@/views/HtmlViewer.vue')
   }
 ]
 

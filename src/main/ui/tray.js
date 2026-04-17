@@ -75,6 +75,24 @@ export function createTray(window, checkForUpdatesFn, createSettingsWindowFn) {
             }
           },
         },
+        {
+          label: 'JSON解析器',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.show()
+              mainWindow.webContents.send('navigate-to', '/json-parser')
+            }
+          },
+        },
+        {
+          label: 'HTML查看器',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.show()
+              mainWindow.webContents.send('navigate-to', '/html-viewer')
+            }
+          },
+        },
       ],
     },
     {
