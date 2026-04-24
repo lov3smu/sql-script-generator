@@ -5,6 +5,9 @@ class DeepSeekProvider extends BaseProvider {
     super({
       name: 'DeepSeek',
       apiKey,
+      hostname: 'api.deepseek.com',
+      path: '/v1/chat/completions',
+      validateModel: 'deepseek-chat',
       models: [
         { id: 'deepseek-chat', name: 'DeepSeek-Chat (推荐)' },
         { id: 'deepseek-coder', name: 'DeepSeek-Coder (编程)' },
@@ -12,54 +15,6 @@ class DeepSeekProvider extends BaseProvider {
       ],
       defaultModel: 'deepseek-chat'
     })
-    this.hostname = 'api.deepseek.com'
-    this.path = '/v1/chat/completions'
-  }
-
-  async chat(messages, tools, options = {}) {
-    const model = options.model || this.defaultModel
-    
-    const requestBody = {
-      model,
-      messages,
-      tools,
-      tool_choice: 'auto'
-    }
-
-    if (options.max_tokens) requestBody.max_tokens = options.max_tokens
-    if (options.temperature !== undefined) requestBody.temperature = options.temperature
-
-    console.log(`=== ${this.name} 发送请求 ===`)
-    console.log('请求体:', JSON.stringify(requestBody, null, 2))
-
-    const result = await this.makeRequest(this.hostname, 443, this.path, requestBody)
-    
-    if (!result.success) return result
-
-    const responseData = result.data
-    console.log(`=== ${this.name} 响应 ===`)
-    console.log(JSON.stringify(responseData, null, 2))
-
-    const message = responseData.choices?.[0]?.message
-    
-    return {
-      success: true,
-      content: message?.content || '',
-      tool_calls: message?.tool_calls,
-      model: responseData.model,
-      usage: responseData.usage
-    }
-  }
-
-  async validateApiKey() {
-    const requestBody = {
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: 'hi' }],
-      max_tokens: 5
-    }
-
-    const result = await this.makeRequest(this.hostname, 443, this.path, requestBody)
-    return result.success
   }
 }
 

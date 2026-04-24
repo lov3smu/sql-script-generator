@@ -7,6 +7,9 @@ class BaseProvider {
     this.name = config.name
     this.models = config.models || []
     this.defaultModel = config.defaultModel
+    this.hostname = config.hostname
+    this.path = config.path
+    this.validateModel = config.validateModel || this.defaultModel
   }
 
   getModels() {
@@ -24,16 +27,60 @@ class BaseProvider {
     return { valid: true }
   }
 
+  buildRequestBody(messages, tools, options) {
+    const model = options.model || this.defaultModel
+    const body = {
+      model,
+      messages,
+      tools,
+      tool_choice: 'auto'
+    }
+    if (options.max_tokens) body.max_tokens = options.max_tokens
+    if (options.temperature !== undefined) body.temperature = options.temperature
+    return body
+  }
+
+  parseResponse(responseData) {
+    const message = responseData.choices?.[0]?.message
+    return {
+      success: true,
+      content: message?.content || '',
+      tool_calls: message?.tool_calls,
+      model: responseData.model,
+      usage: responseData.usage
+    }
+  }
+
   async chat(messages, tools, options = {}) {
-    throw new Error('chat method must be implemented by subclass')
+    const requestBody = this.buildRequestBody(messages, tools, options)
+    
+    console.log(`=== ${this.name} 发送请求 ===`)
+    console.log('请求体:', JSON.stringify(requestBody, null, 2))
+
+    const result = await this.makeRequest(this.hostname, 443, this.path, requestBody)
+    
+    if (!result.success) return result
+
+    const responseData = result.data
+    console.log(`=== ${this.name} 响应 ===`)
+    console.log(JSON.stringify(responseData, null, 2))
+
+    return this.parseResponse(responseData)
   }
 
   async validateApiKey() {
-    throw new Error('validateApiKey method must be implemented by subclass')
+    const requestBody = {
+      model: this.validateModel,
+      messages: [{ role: 'user', content: 'hi' }],
+      max_tokens: 5
+    }
+
+    const result = await this.makeRequest(this.hostname, 443, this.path, requestBody)
+    return result.success
   }
 
   async makeRequest(hostname, port, path, requestBody) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const req = https.request(
         {
           hostname,
