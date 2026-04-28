@@ -33,7 +33,8 @@ class BaseProvider {
       model,
       messages,
       tools,
-      tool_choice: 'auto'
+      tool_choice: 'auto',
+      stream: options.stream || false
     }
     if (options.max_tokens) body.max_tokens = options.max_tokens
     if (options.temperature !== undefined) body.temperature = options.temperature
@@ -66,6 +67,104 @@ class BaseProvider {
     console.log(JSON.stringify(responseData, null, 2))
 
     return this.parseResponse(responseData)
+  }
+
+  chatStream(messages, tools, options = {}, onChunk) {
+    return new Promise((resolve, reject) => {
+      const requestBody = this.buildRequestBody(messages, tools, { ...options, stream: true })
+      
+      console.log(`=== ${this.name} 流式请求 ===`)
+      console.log('请求体:', JSON.stringify(requestBody, null, 2))
+
+      const req = https.request(
+        {
+          hostname: this.hostname,
+          port: 443,
+          path: this.path,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`
+          }
+        },
+        (res) => {
+          let fullContent = ''
+          const toolCalls = []
+          let buffer = ''
+
+          res.on('data', (chunk) => {
+            buffer += chunk.toString()
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6).trim()
+                if (data === '[DONE]') continue
+                
+                try {
+                  const json = JSON.parse(data)
+                  const delta = json.choices?.[0]?.delta
+                  
+                  if (delta?.content) {
+                    fullContent += delta.content
+                    if (onChunk) onChunk(delta.content)
+                  }
+                  
+                  if (delta?.tool_calls) {
+                    for (const tc of delta.tool_calls) {
+                      const idx = tc.index || 0
+                      const existing = toolCalls[idx]
+                      
+                      if (!existing) {
+                        toolCalls[idx] = {
+                          id: tc.id || '',
+                          type: tc.type || 'function',
+                          function: {
+                            name: tc.function?.name || '',
+                            arguments: tc.function?.arguments || ''
+                          }
+                        }
+                      } else {
+                        if (tc.id) existing.id = tc.id
+                        if (tc.function?.name) existing.function.name = tc.function.name
+                        if (tc.function?.arguments) existing.function.arguments += tc.function.arguments
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // 忽略解析错误
+                }
+              }
+            }
+          })
+
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              log.error(`${this.name} 流式请求失败: ${res.statusCode}`)
+              reject({ success: false, error: `请求失败: ${res.statusCode}` })
+              return
+            }
+            
+            const validToolCalls = toolCalls.filter(tc => tc && tc.function?.name)
+            
+            resolve({
+              success: true,
+              content: fullContent,
+              tool_calls: validToolCalls.length > 0 ? validToolCalls : undefined
+            })
+          })
+        }
+      )
+
+      req.on('error', (e) => {
+        log.error(`${this.name} 流式请求网络错误:`, e)
+        reject({ success: false, error: `网络请求失败: ${e.message}` })
+      })
+
+      req.write(JSON.stringify(requestBody))
+      req.end()
+    })
   }
 
   async validateApiKey() {

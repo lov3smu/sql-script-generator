@@ -115,6 +115,8 @@ BEGIN;
 
 SET @author = '${safeDevEnName}${dateCompact}';
 
+-- 请在此处添加SQL语句
+
 INSERT INTO t_script_history (scriptName, remark, create_by, modify_by, create_time, modify_time)
 VALUES ('${safeFilename}', '${safeUsage}', @author, @author, NOW(), NOW());
 
